@@ -454,14 +454,11 @@ function renderTrend(){
   paint(false);
   clearInterval(_trendTimer);
   _trendTimer=setInterval(()=>{
+    const last=_trendSeries[_trendSeries.length-1];
     _trendSeries.shift();
-    _trendSeries.push(Math.max(7,Math.min(28,_trendSeries[N-1]+_rand(-3.5,3.5))));
-    paint(true); _liveTick++;
+    _trendSeries.push(Math.max(7,Math.min(28,Math.round(last+_rand(-3.5,3.5)))));
+    paint(true);
     const u=$("#tr-upd"); if(u)u.textContent="방금 업데이트";
-    // 라이브: 새 사건 인입 시 오늘 접수·큐 카운터 증가 (2회 갱신당 1건)
-    if(_liveTick%2===0){
-      const t=$("#kpi-today"); if(t){const n=parseInt(t.textContent)+1;t.innerHTML=n+'<small>건</small>';}
-    }
   },2600);
 }
 
@@ -473,13 +470,15 @@ function renderUrg(){
   $("#urgbars").innerHTML=rows.map(([k,l])=>`<div class="factor"><div class="fn">${pill(k)}</div><div class="fb"><i style="width:${g[k]/mx*100}%;background:${k==='crit'?'var(--critical)':k==='ser'?'var(--serious)':k==='warn'?'var(--warn)':'var(--good)'}"></i></div><div class="fw">${g[k]}</div></div>`).join("");
 }
 
-/* ================= RECENT + CASE LIST ================= */
+/* ================= RECENT + CASE LIST (긴급도 순 정렬: 긴급→높음→보통→완료) ================= */
+function urgRank(c){return c.step>=7?3:({crit:0,ser:1,warn:2}[c.urg]??2);}
+function sortedCases(){return CASES.slice().sort((a,b)=>urgRank(a)-urgRank(b) || b.id.localeCompare(a.id));}
 function renderRecent(){
-  $("#recent").innerHTML=CASES.slice(0,5).map(c=>`<tr data-go="${c.id}"><td class="mono">${c.id}</td><td class="tnum">${c.t}</td><td>${c.name}</td><td>${c.type}</td><td class="tnum">${won(c.amt)}</td><td>${pill(c.step===7?'ok':c.urg)}</td><td>${c.step===7?pill('ok'):progress(c.step)}</td></tr>`).join("");
+  $("#recent").innerHTML=sortedCases().slice(0,5).map(c=>`<tr data-go="${c.id}"><td class="mono">${c.id}</td><td class="tnum">${c.t}</td><td>${c.name}</td><td>${c.type}</td><td class="tnum">${won(c.amt)}</td><td>${pill(c.step===7?'ok':c.urg)}</td><td>${c.step===7?pill('ok'):progress(c.step)}</td></tr>`).join("");
   $("#recent").querySelectorAll("tr").forEach(tr=>tr.onclick=()=>{go('cases');selectCase(tr.dataset.go);});
 }
 function renderCaseList(){
-  $("#caselist").innerHTML=CASES.map(c=>`<tr data-id="${c.id}"><td class="mono">${c.id}</td><td class="tnum">${c.t}</td><td>${c.name}</td><td>${c.bank}</td><td class="tnum">${won(c.amt)}</td><td class="mono tnum" style="font-weight:700">${c.risk}</td><td>${pill(c.step===7?'ok':c.urg)}</td><td>${c.step===7?pill('ok'):progress(c.step)}</td></tr>`).join("");
+  $("#caselist").innerHTML=sortedCases().map(c=>`<tr data-id="${c.id}"${c.id===curCase?' class="rowsel"':''}><td class="mono">${c.id}</td><td class="tnum">${c.t}</td><td>${c.name}</td><td>${c.bank}</td><td class="tnum">${won(c.amt)}</td><td class="mono tnum" style="font-weight:700">${c.risk}</td><td>${pill(c.step===7?'ok':c.urg)}</td><td>${c.step===7?pill('ok'):progress(c.step)}</td></tr>`).join("");
   $("#caselist").querySelectorAll("tr").forEach(tr=>tr.onclick=()=>selectCase(tr.dataset.id));
 }
 let curCase=CASES[0].id;
@@ -579,7 +578,48 @@ document.querySelectorAll(".nav-item").forEach(n=>n.onclick=()=>go(n.dataset.v))
 document.querySelectorAll("[data-pk]").forEach(b=>b.onclick=()=>{pkMode=b.dataset.pk;document.querySelectorAll("[data-pk]").forEach(x=>x.classList.toggle("on",x===b));renderPacket();});
 
 /* ================= INIT ================= */
+/* ================= 라이브 데이터 엔진 (전체 대시보드 실시간 갱신) ================= */
+const _GEN={
+  fam:["김","이","박","최","정","강","조","윤","장","임","한","오"],
+  bank:[["농협은행","1644-1414","ver"],["국민은행","1588-9999","draft"],["신한은행","1577-8000","draft"],["우리은행","1588-5000","draft"],["카카오뱅크","1599-3333","draft"],["하나은행","1599-1111","draft"]],
+  type:["기관사칭(검찰)","대출빙자","메신저피싱(가족사칭)","기관사칭(금감원)","기관사칭(경찰)","물품거래사기"],
+  cyber:["서울경찰청 사이버수사대","경기남부청 사이버수사대","부산경찰청 사이버수사대","인천경찰청 사이버수사대","대구경찰청 사이버수사대","광주경찰청 사이버수사대"]
+};
+let _caseSeq=418;
+function _pick(a){return a[Math.floor(Math.random()*a.length)];}
+function genCase(){
+  const now=new Date(); const hh=String(now.getHours()).padStart(2,'0'), mm=String(now.getMinutes()).padStart(2,'0');
+  const age=[40,50,60,70][Math.floor(Math.random()*4)];
+  const b=_pick(_GEN.bank), type=_pick(_GEN.type);
+  const amt=(Math.floor(Math.random()*80)+10)*100000;
+  const risk=Math.floor(Math.random()*56)+40;
+  const urg=risk>=85?"crit":risk>=68?"ser":"warn";
+  const seq=String(_caseSeq++).padStart(4,'0');
+  return {id:`GT-26072-${seq}`,t:`${hh}:${mm}`,name:`${_pick(_GEN.fam)}○○(${age}대)`,bank:b[0],hot:b[1],hotpv:b[2],
+    amt,risk,urg,step:1,type,
+    stmt:`${type} 수법으로 ${won(amt)}을 이체했다는 진술.`,
+    factors:[["송금 경과시간",Math.floor(Math.random()*40)+55],["사기 패턴",Math.floor(Math.random()*30)+60],["금액 규모",Math.floor(Math.random()*40)+45],["수취계좌 신고이력",Math.floor(Math.random()*35)+55]],
+    dest:"3**-****-**"+String(Math.floor(Math.random()*9000)+1000),destbank:"○○"+_pick(["저축은행","은행","신협","핀테크"]),cyber:_pick(_GEN.cyber)};
+}
+let _dataTimer=null,_dtick=0;
+function refreshDashboard(){
+  renderKPIs(); renderUrg(); renderRecent();
+  if(document.getElementById("v-cases").classList.contains("on")) renderCaseList();
+}
+function startLive(){
+  clearInterval(_dataTimer);
+  _dataTimer=setInterval(()=>{
+    _dtick++;
+    // 1) 진행 중 사건 한 건의 단계 전진 (실시간 회복 진행)
+    const prog=CASES.filter(c=>c.step<7);
+    if(prog.length){ const c=_pick(prog); c.step++; if(c.step>=7)c.urg="ok"; }
+    // 2) 3틱마다 신규 사건 인입 (오늘 접수 증가)
+    if(_dtick%3===0){ CASES.unshift(genCase()); if(CASES.length>12)CASES.pop(); }
+    refreshDashboard();
+  }, 3400);
+}
 renderKPIs();renderTrend();renderUrg();renderRecent();renderCaseList();selectCase(curCase);renderAudit();renderData();
+startLive();
 window.addEventListener('resize',renderTrend);
 </script>
 </body>
