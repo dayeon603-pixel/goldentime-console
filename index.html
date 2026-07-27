@@ -68,6 +68,7 @@ nav{padding:10px 12px;flex:1;overflow:auto}
 .topdiv{width:1px;height:26px;background:var(--line)}
 .toplink{font-size:13px;font-weight:600;color:var(--accent);padding:6px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);cursor:pointer;transition:.12s}
 .toplink:hover{background:var(--accent-soft);border-color:var(--accent)}
+.livedot{animation:lp 1.8s ease-in-out infinite}@keyframes lp{0%,100%{opacity:1}50%{opacity:.3}}
 .userbtn{display:flex;align-items:center;gap:9px;padding:5px 8px;border-radius:var(--radius-sm);cursor:pointer}
 .userbtn:hover{background:var(--subtle)}
 .avatar{width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);
@@ -259,7 +260,7 @@ tbody tr:last-child td{border-bottom:none}
         <div class="kpi-row" id="kpis"></div>
         <div class="grid g-2">
           <div class="card">
-            <div class="card-head"><h3>실시간 사건 인입</h3><span class="hint">최근 60초 · 라이브</span><span class="spacer" style="flex:1"></span><span class="st ok"><span class="g" style="background:var(--good)"></span>LIVE</span></div>
+            <div class="card-head"><h3>실시간 사건 인입</h3><span class="hint">실시간 · <span id="tr-upd">연결됨</span></span><span class="spacer" style="flex:1"></span><span class="st ok"><span class="g livedot" style="background:var(--good)"></span>LIVE</span></div>
             <div class="card-body"><div class="svg-wrap" id="trend"></div></div>
           </div>
           <div class="card">
@@ -410,57 +411,58 @@ function renderKPIs(){
   const avgFirst="4.2";
   const done=CASES.filter(c=>c.step===7).length, rate=Math.round(done/CASES.length*100);
   const tiles=[
-    {label:"오늘 접수",val:CASES.length,unit:"건",delta:["up","+3 전일比"],sp:[14,17,23,20,16,21,24],c:"var(--accent)"},
+    {label:"오늘 접수",val:CASES.length,unit:"건",delta:["up","+3 전일比"],sp:[14,17,23,20,16,21,24],c:"var(--accent)",id:"kpi-today"},
     {label:"평균 초동대응",val:avgFirst,unit:"분",delta:["down","−1.3분 개선"],sp:[7,6.5,6,5.4,4.9,4.5,4.2],c:"var(--good)"},
     {label:"환급률 (기준)",val:NUM.rebate_now,unit:"%",delta:["flat","목표 43%"],sp:[31,31.5,32,32.4,32.8,33,33.2],c:"var(--warn)"},
     {label:"7단계 완료율",val:rate,unit:"%",delta:["up","+8%p"],sp:[40,48,52,58,60,62,rate],c:"var(--good)"},
   ];
   $("#kpis").innerHTML=tiles.map(t=>`<div class="kpi">
     <div class="label">${t.label}</div>
-    <div class="val tnum">${t.val}<small>${t.unit}</small></div>
+    <div class="val tnum"${t.id?` id="${t.id}"`:''}>${t.val}<small>${t.unit}</small></div>
     <div class="delta ${t.delta[0]}">${t.delta[0]==='up'?'▲':t.delta[0]==='down'?'▼':'●'} ${t.delta[1]}</div>
     <div class="spark">${spark(t.sp,t.c)}</div></div>`).join("");
   $("#nav-open").textContent=openN; $("#queuecount").textContent=`총 ${CASES.length}건 · 처리중 ${openN}건`;
 }
 
 /* ================= TREND (single-series area, hand-rolled SVG) ================= */
-let _trendRAF=null,_trendSeries=null;
+let _trendTimer=null,_trendSeries=null,_liveTick=0;
 function _rand(a,b){return a+Math.random()*(b-a);}
 function renderTrend(){
   const W=680,H=220, ml=34,mr=16,mt=14,mb=20;
-  const iw=W-ml-mr, ih=H-mt-mb, N=38, mx=30, mn=0;
-  const stepX=iw/(N-3);
-  const Y=v=>mt+ih-(v-mn)/(mx-mn)*ih;
+  const iw=W-ml-mr, ih=H-mt-mb, N=26, mx=30, mn=0;
+  const X=i=>ml+i*iw/(N-1), Y=v=>mt+ih-(v-mn)/(mx-mn)*ih;
   if(!_trendSeries){_trendSeries=[];let v=19;for(let i=0;i<N;i++){v=Math.max(7,Math.min(28,v+_rand(-3,3)));_trendSeries.push(v);}}
   let grid='';for(let g=0;g<=4;g++){const gv=mx*g/4,gy=Y(gv);grid+=`<line x1="${ml}" y1="${gy.toFixed(1)}" x2="${ml+iw}" y2="${gy.toFixed(1)}" stroke="var(--line)" stroke-width="1"/><text x="${ml-8}" y="${(gy+4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${Math.round(gv)}</text>`;}
   $("#trend").innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" id="trendsvg">
-    <defs>
-      <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".18"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient>
-      <clipPath id="plotclip"><rect x="${ml}" y="${mt-8}" width="${iw}" height="${ih+16}"/></clipPath>
-    </defs>
+    <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".18"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
     ${grid}
-    <g clip-path="url(#plotclip)"><path id="tr-area" fill="url(#ag)"/><path id="tr-line" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>
-    <circle id="tr-dot" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>
+    <path id="tr-area" fill="url(#ag)"/><path id="tr-line" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:d .5s linear"/>
+    <circle id="tr-dot" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2" style="transition:cx .5s linear,cy .5s linear,r .25s"/>
     <text id="tr-val" text-anchor="middle" font-size="11" font-weight="700" fill="var(--accent)"></text>
   </svg>`;
   const area=$("#tr-area"),line=$("#tr-line"),dot=$("#tr-dot"),val=$("#tr-val");
-  let offset=0; const speed=stepX/72;
-  function draw(){
-    offset+=speed;
-    if(offset>=stepX){offset-=stepX;_trendSeries.shift();_trendSeries.push(Math.max(7,Math.min(28,_trendSeries[_trendSeries.length-1]+_rand(-3.2,3.2))));}
+  function paint(arrived){
     const pts=_trendSeries; let d='';
-    for(let i=0;i<pts.length;i++){const x=ml+i*stepX-offset;d+=(i?'L':'M')+x.toFixed(1)+' '+Y(pts[i]).toFixed(1)+' ';}
+    for(let i=0;i<N;i++)d+=(i?'L':'M')+X(i).toFixed(1)+' '+Y(pts[i]).toFixed(1)+' ';
     line.setAttribute('d',d);
-    const firstX=ml-offset,lastX=ml+(pts.length-1)*stepX-offset;
-    area.setAttribute('d',`M${firstX.toFixed(1)} ${mt+ih} `+d.replace(/^M/,'L')+`L${lastX.toFixed(1)} ${mt+ih} Z`);
-    let dx=ml+iw,dv=pts[pts.length-1];
-    for(let i=0;i<pts.length;i++){const x=ml+i*stepX-offset;if(x<=ml+iw){dx=x;dv=pts[i];}}
-    dot.setAttribute('cx',dx.toFixed(1));dot.setAttribute('cy',Y(dv).toFixed(1));
-    val.setAttribute('x',dx.toFixed(1));val.setAttribute('y',(Y(dv)-10).toFixed(1));val.textContent=Math.round(dv)+'건';
-    _trendRAF=requestAnimationFrame(draw);
+    area.setAttribute('d',`M${ml} ${mt+ih} `+d.replace(/^M/,'L')+`L${ml+iw} ${mt+ih} Z`);
+    const lv=pts[N-1];
+    dot.setAttribute('cx',X(N-1).toFixed(1));dot.setAttribute('cy',Y(lv).toFixed(1));
+    val.setAttribute('x',X(N-1).toFixed(1));val.setAttribute('y',(Y(lv)-10).toFixed(1));val.textContent=Math.round(lv)+'건';
+    if(arrived){dot.setAttribute('r','6');setTimeout(()=>dot.setAttribute('r','4'),260);}
   }
-  if(_trendRAF)cancelAnimationFrame(_trendRAF);
-  draw();
+  paint(false);
+  clearInterval(_trendTimer);
+  _trendTimer=setInterval(()=>{
+    _trendSeries.shift();
+    _trendSeries.push(Math.max(7,Math.min(28,_trendSeries[N-1]+_rand(-3.5,3.5))));
+    paint(true); _liveTick++;
+    const u=$("#tr-upd"); if(u)u.textContent="방금 업데이트";
+    // 라이브: 새 사건 인입 시 오늘 접수·큐 카운터 증가 (2회 갱신당 1건)
+    if(_liveTick%2===0){
+      const t=$("#kpi-today"); if(t){const n=parseInt(t.textContent)+1;t.innerHTML=n+'<small>건</small>';}
+    }
+  },2600);
 }
 
 /* ================= URGENCY BARS (single-series magnitude) ================= */
