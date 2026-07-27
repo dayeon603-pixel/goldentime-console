@@ -456,10 +456,10 @@ function renderTrend(){
   _trendTimer=setInterval(()=>{
     const last=_trendSeries[_trendSeries.length-1];
     _trendSeries.shift();
-    _trendSeries.push(Math.max(7,Math.min(28,Math.round(last+_rand(-3.5,3.5)))));
+    _trendSeries.push(Math.max(5,Math.min(29,Math.round(last+_rand(-6,6)))));
     paint(true);
     const u=$("#tr-upd"); if(u)u.textContent="방금 업데이트";
-  },2600);
+  },1300);
 }
 
 /* ================= URGENCY BARS (single-series magnitude) ================= */
@@ -611,12 +611,13 @@ function startLive(){
   _dataTimer=setInterval(()=>{
     _dtick++;
     // 1) 진행 중 사건 한 건의 단계 전진 (실시간 회복 진행)
-    const prog=CASES.filter(c=>c.step<7);
-    if(prog.length){ const c=_pick(prog); c.step++; if(c.step>=7)c.urg="ok"; }
-    // 2) 3틱마다 신규 사건 인입 (오늘 접수 증가)
-    if(_dtick%3===0){ CASES.unshift(genCase()); if(CASES.length>12)CASES.pop(); }
+    let prog=CASES.filter(c=>c.step<7);
+    const adv=Math.min(prog.length, 1+(Math.random()<0.5?1:0));
+    for(let k=0;k<adv;k++){ const c=_pick(prog); c.step++; if(c.step>=7)c.urg="ok"; prog=prog.filter(x=>x!==c); }
+    // 2) 2틱마다 신규 사건 인입 (오늘 접수 증가)
+    if(_dtick%2===0){ CASES.unshift(genCase()); if(CASES.length>12)CASES.pop(); }
     refreshDashboard();
-  }, 3400);
+  }, 1800);
 }
 renderKPIs();renderTrend();renderUrg();renderRecent();renderCaseList();selectCase(curCase);renderAudit();renderData();
 startLive();
