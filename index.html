@@ -330,7 +330,7 @@ tbody tr:last-child td{border-bottom:none}
 /* ================= SEED DATA (전부 합성/마스킹) ================= */
 const NUM = {rebate_now:33.2, rebate_target:43.0, loss_year_eok:8545, cases_year:19972};
 
-const CASES = [
+let CASES = [
   {id:"GT-26072-0417", t:"14:32", name:"김○○(70대)", bank:"농협은행", hot:"1644-1414", hotpv:"ver",
    amt:5000000, risk:88, urg:"crit", step:3, type:"기관사칭(검찰)",
    stmt:"검찰이라며 계좌가 범죄에 연루됐다고 해서 안전계좌로 500만원을 보냈다는 진술.",
@@ -431,7 +431,7 @@ function renderTrend(){
   const W=680,H=220, ml=34,mr=16,mt=14,mb=20;
   const iw=W-ml-mr, ih=H-mt-mb, N=26, mx=30, mn=0;
   const X=i=>ml+i*iw/(N-1), Y=v=>mt+ih-(v-mn)/(mx-mn)*ih;
-  if(!_trendSeries){_trendSeries=[];let v=19;for(let i=0;i<N;i++){v=Math.max(7,Math.min(28,v+_rand(-3,3)));_trendSeries.push(v);}}
+  if(!_trendSeries||_trendSeries.length!==N){_trendSeries=[];let v=19;for(let i=0;i<N;i++){v=Math.max(7,Math.min(28,v+_rand(-3,3)));_trendSeries.push(v);}}
   let grid='';for(let g=0;g<=4;g++){const gv=mx*g/4,gy=Y(gv);grid+=`<line x1="${ml}" y1="${gy.toFixed(1)}" x2="${ml+iw}" y2="${gy.toFixed(1)}" stroke="var(--line)" stroke-width="1"/><text x="${ml-8}" y="${(gy+4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${Math.round(gv)}</text>`;}
   $("#trend").innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" id="trendsvg">
     <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".18"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
@@ -602,6 +602,12 @@ function genCase(){
     dest:"3**-****-**"+String(Math.floor(Math.random()*9000)+1000),destbank:"○○"+_pick(["저축은행","은행","신협","핀테크"]),cyber:_pick(_GEN.cyber)};
 }
 let _dataTimer=null,_dtick=0;
+/* ===== 상태 지속 (새로고침해도 이어짐) ===== */
+const LS_KEY="gt_console_state_v2";
+function saveState(){try{localStorage.setItem(LS_KEY,JSON.stringify({cases:CASES,series:_trendSeries,seq:_caseSeq,cur:curCase,ts:Date.now()}));}catch(e){}}
+function loadState(){try{const s=JSON.parse(localStorage.getItem(LS_KEY)||"null");
+  if(s&&Array.isArray(s.cases)&&s.cases.length){CASES=s.cases;if(Array.isArray(s.series))_trendSeries=s.series;if(s.seq)_caseSeq=s.seq;if(s.cur)curCase=s.cur;
+    if(!CASES.find(c=>c.id===curCase))curCase=CASES[0].id;}}catch(e){}}
 function refreshDashboard(){
   renderKPIs(); renderUrg(); renderRecent();
   if(document.getElementById("v-cases").classList.contains("on")) renderCaseList();
@@ -616,12 +622,15 @@ function startLive(){
     for(let k=0;k<adv;k++){ const c=_pick(prog); c.step++; if(c.step>=7)c.urg="ok"; prog=prog.filter(x=>x!==c); }
     // 2) 2틱마다 신규 사건 인입 (오늘 접수 증가)
     if(_dtick%2===0){ CASES.unshift(genCase()); if(CASES.length>12)CASES.pop(); }
-    refreshDashboard();
+    refreshDashboard(); saveState();
   }, 1800);
 }
+loadState();
 renderKPIs();renderTrend();renderUrg();renderRecent();renderCaseList();selectCase(curCase);renderAudit();renderData();
 startLive();
 window.addEventListener('resize',renderTrend);
+window.addEventListener('pagehide',saveState);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)saveState();});
 </script>
 </body>
 </html>
