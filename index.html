@@ -294,7 +294,7 @@ tbody tr:last-child td{border-bottom:none}
           <h2>리포트 패킷</h2><p>은행·보험 인입용 구조화 사건 패킷 · 계좌·성명 마스킹 + 감사 해시 포함</p>
           <span class="spacer"></span>
           <div class="seg"><button class="on" data-pk="doc">문서 뷰</button><button data-pk="json">JSON</button></div>
-          <button class="btn primary" style="margin-left:8px">패킷 내보내기</button>
+          <button class="btn primary" id="pk-export" style="margin-left:8px">패킷 내보내기</button>
         </div>
         <div class="card"><div class="card-head"><h3 id="pk-title"></h3><span class="hint">수익 핵심 산출물 · 건당 한계비용 ~128원 (규모 시 ~71원)</span></div>
           <div class="card-body" id="pk-body"></div></div>
@@ -365,7 +365,7 @@ let CASES = [
 const STEPS = ["상황 진단","계좌 지급정지 요청","1332 금감원 신고","경찰(112/사이버) 접수","송금처 위험 분석","가족 알림","보험·환급 청구 패킷"];
 const STEP_DESC = ["진술 해석 → 사기유형·긴급도 분류","해당 은행 사기예방콜센터 자동 안내","지연인출·환급 신청 접수","관할 사이버수사대 연결","수취계좌 신고이력 조회","보호자 SMS 알림 발송","은행·보험 인입용 패킷 생성"];
 const trend14 = [12,15,11,18,22,19,14,17,23,20,16,21,25,24];
-const AUDIT = [
+let AUDIT = [
   {n:7,t:"14:32:07",ev:"packet_generated",case:"GT-26072-0417",who:"api:consumer-protection",prev:"a91f…3d0c",cur:"7be2…88af"},
   {n:6,t:"14:32:02",ev:"risk_scored",case:"GT-26072-0417",who:"engine:deterministic",prev:"5c40…19bb",cur:"a91f…3d0c"},
   {n:5,t:"14:31:58",ev:"triage_completed",case:"GT-26072-0417",who:"engine:llm-assisted",prev:"e0d7…7a41",cur:"5c40…19bb"},
@@ -554,7 +554,30 @@ function renderPacket(){
   }
 }
 
-/* ================= AUDIT ================= */
+/* 패킷 객체 + 내보내기(실제 JSON 다운로드) */
+function packetObj(c){return {packet_id:"PK-"+c.id.slice(3),case_id:c.id,generated_at:"2026-07-26T"+c.t+":07+09:00",fraud_type:c.type,amount_krw:c.amt,urgency:c.urg,risk_score:c.risk,origin_bank:{name:c.bank,fraud_hotline:c.hot},destination_account_masked:c.dest,account_hash:"sha256:9c1e…a4",police_unit:c.cyber,recovery_progress:c.step+"/7",audit_hash:_lastHash};}
+function toast(msg){const t=document.createElement("div");t.textContent=msg;t.style.cssText="position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:100;box-shadow:0 6px 24px rgba(0,0,0,.25)";document.body.appendChild(t);setTimeout(()=>{t.style.transition="opacity .4s";t.style.opacity="0";setTimeout(()=>t.remove(),400);},1800);}
+function exportPacket(){
+  const c=CASES.find(x=>x.id===curCase)||CASES[0];
+  const fn=`PK-${c.id.slice(3)}.json`;
+  const blob=new Blob([JSON.stringify(packetObj(c),null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download=fn;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  auditPush("packet_exported",c.id,"api:consumer-protection");
+  if(document.getElementById("v-audit").classList.contains("on"))renderAudit();
+  saveState(); toast("패킷 내보내기 완료 · "+fn);
+}
+
+/* ================= AUDIT (라이브 변조감지 체인) ================= */
+let _lastHash="7be2…88af",_auditSeq=8;
+function _hex(){return Math.floor(Math.random()*65536).toString(16).padStart(4,"0");}
+function auditPush(ev,caseId,who){
+  const n=new Date(),t=`${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}:${String(n.getSeconds()).padStart(2,"0")}`;
+  const prev=_lastHash,cur=_hex()+"…"+_hex();_lastHash=cur;
+  AUDIT.unshift({n:_auditSeq++,t,ev,case:caseId,who,prev,cur});
+  if(AUDIT.length>16)AUDIT.pop();
+}
 function renderAudit(){
   $("#auditrows").innerHTML=AUDIT.map(a=>`<tr class="chainrow" style="cursor:default"><td class="mono">${a.n}</td><td class="mono tnum">${a.t}</td><td><span class="st info">${a.ev}</span></td><td class="mono">${a.case}</td><td class="mono" style="color:var(--ink-2)">${a.who}</td><td class="hashline">${a.prev} <span class="arrow">→</span> <b>${a.cur}</b></td></tr>`).join("");
 }
@@ -576,6 +599,7 @@ function go(v){
 }
 document.querySelectorAll(".nav-item").forEach(n=>n.onclick=()=>go(n.dataset.v));
 document.querySelectorAll("[data-pk]").forEach(b=>b.onclick=()=>{pkMode=b.dataset.pk;document.querySelectorAll("[data-pk]").forEach(x=>x.classList.toggle("on",x===b));renderPacket();});
+$("#pk-export").onclick=exportPacket;
 
 /* ================= INIT ================= */
 /* ================= 라이브 데이터 엔진 (전체 대시보드 실시간 갱신) ================= */
@@ -604,24 +628,26 @@ function genCase(){
 let _dataTimer=null,_dtick=0;
 /* ===== 상태 지속 (새로고침해도 이어짐) ===== */
 const LS_KEY="gt_console_state_v2";
-function saveState(){try{localStorage.setItem(LS_KEY,JSON.stringify({cases:CASES,series:_trendSeries,seq:_caseSeq,cur:curCase,ts:Date.now()}));}catch(e){}}
+function saveState(){try{localStorage.setItem(LS_KEY,JSON.stringify({cases:CASES,series:_trendSeries,seq:_caseSeq,cur:curCase,audit:AUDIT,aseq:_auditSeq,lhash:_lastHash,ts:Date.now()}));}catch(e){}}
 function loadState(){try{const s=JSON.parse(localStorage.getItem(LS_KEY)||"null");
   if(s&&Array.isArray(s.cases)&&s.cases.length){CASES=s.cases;if(Array.isArray(s.series))_trendSeries=s.series;if(s.seq)_caseSeq=s.seq;if(s.cur)curCase=s.cur;
+    if(Array.isArray(s.audit)&&s.audit.length)AUDIT=s.audit;if(s.aseq)_auditSeq=s.aseq;if(s.lhash)_lastHash=s.lhash;
     if(!CASES.find(c=>c.id===curCase))curCase=CASES[0].id;}}catch(e){}}
 function refreshDashboard(){
   renderKPIs(); renderUrg(); renderRecent();
   if(document.getElementById("v-cases").classList.contains("on")) renderCaseList();
+  if(document.getElementById("v-audit").classList.contains("on")) renderAudit();
 }
 function startLive(){
   clearInterval(_dataTimer);
   _dataTimer=setInterval(()=>{
     _dtick++;
-    // 1) 진행 중 사건 한 건의 단계 전진 (실시간 회복 진행)
+    // 1) 진행 중 사건 한 건의 단계 전진 (실시간 회복 진행) + 감사 이벤트 기록
     let prog=CASES.filter(c=>c.step<7);
     const adv=Math.min(prog.length, 1+(Math.random()<0.5?1:0));
-    for(let k=0;k<adv;k++){ const c=_pick(prog); c.step++; if(c.step>=7)c.urg="ok"; prog=prog.filter(x=>x!==c); }
+    for(let k=0;k<adv;k++){ const c=_pick(prog); c.step++; if(c.step>=7){c.urg="ok";auditPush("packet_generated",c.id,"api:consumer-protection");} else {auditPush("risk_scored",c.id,"engine:deterministic");} prog=prog.filter(x=>x!==c); }
     // 2) 2틱마다 신규 사건 인입 (오늘 접수 증가)
-    if(_dtick%2===0){ CASES.unshift(genCase()); if(CASES.length>12)CASES.pop(); }
+    if(_dtick%2===0){ const nc=genCase(); CASES.unshift(nc); if(CASES.length>12)CASES.pop(); auditPush("triage_completed",nc.id,"engine:llm-assisted"); }
     refreshDashboard(); saveState();
   }, 1800);
 }
