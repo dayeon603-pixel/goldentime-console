@@ -64,8 +64,10 @@ nav{padding:10px 12px;flex:1;overflow:auto}
 .topbar .crumb{color:var(--muted);font-size:13px}
 .spacer{flex:1}
 .demoflag{font-size:11.5px;color:var(--muted);padding-left:12px;margin-left:12px;border-left:1px solid var(--line)}
-.toplink{font-size:13px;font-weight:600;color:var(--accent);padding:6px 12px;border:1px solid var(--line);border-radius:var(--radius-sm)}
-.toplink:hover{background:var(--accent-soft);border-color:var(--accent-soft)}
+.rcluster{display:flex;align-items:center;gap:12px}
+.topdiv{width:1px;height:26px;background:var(--line)}
+.toplink{font-size:13px;font-weight:600;color:var(--accent);padding:6px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);cursor:pointer;transition:.12s}
+.toplink:hover{background:var(--accent-soft);border-color:var(--accent)}
 .userbtn{display:flex;align-items:center;gap:9px;padding:5px 8px;border-radius:var(--radius-sm);cursor:pointer}
 .userbtn:hover{background:var(--subtle)}
 .avatar{width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);
@@ -241,8 +243,11 @@ tbody tr:last-child td{border-bottom:none}
       <span class="crumb" id="crumb">사기대응 현황</span>
       <span class="demoflag">데모 환경 · 합성 데이터</span>
       <span class="spacer"></span>
-      <a class="toplink" href="./app.html" target="_blank" rel="noopener">고객 화면(모바일)&nbsp;→</a>
-      <div class="userbtn"><div class="avatar">담</div><div style="font-size:12.5px"><b>담당자</b><div style="color:var(--muted);font-size:11px">소비자보호팀</div></div></div>
+      <div class="rcluster">
+        <a class="toplink" href="./app.html" target="_blank" rel="noopener">고객 화면(모바일)&nbsp;→</a>
+        <span class="topdiv"></span>
+        <div class="userbtn"><div class="avatar">담</div><div style="font-size:12.5px"><b>담당자</b><div style="color:var(--muted);font-size:11px">소비자보호팀</div></div></div>
+      </div>
     </div>
 
     <div class="content">
