@@ -14,12 +14,12 @@
 :root{
   --ink:#0f172a; --ink-2:#475569; --muted:#94a3b8;
   --app:#f1f5f9; --surface:#ffffff; --subtle:#f8fafc; --line:#e2e8f0; --line-2:#cbd5e1;
-  --accent:#4f46e5; --accent-soft:#eef2ff; --accent-ink:#3730a3;
-  --good:#15803d; --good-soft:#dcfce7; --warn:#b45309; --warn-soft:#fef3c7;
-  --serious:#c2410c; --serious-soft:#ffedd5; --critical:#b91c1c; --critical-soft:#fee2e2;
+  --accent:#1e50a2; --accent-soft:#eef3fb; --accent-ink:#163d7c;
+  --good:#15803d; --good-soft:#e6f4ea; --warn:#b45309; --warn-soft:#fbf1dc;
+  --serious:#c2410c; --serious-soft:#fbecdf; --critical:#b91c1c; --critical-soft:#fbe9e9;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   --sans:"Pretendard","Apple SD Gothic Neo","Segoe UI",system-ui,-apple-system,sans-serif;
-  --radius:12px; --radius-sm:8px; --shadow:0 1px 2px rgba(15,23,42,.04),0 4px 16px rgba(15,23,42,.06);
+  --radius:6px; --radius-sm:5px; --shadow:0 1px 2px rgba(15,23,42,.05);
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
@@ -35,8 +35,8 @@ button{font-family:inherit}
 .side{background:#0f172a;color:#cbd5e1;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
 .brand{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
 .brand .logo{display:flex;align-items:center;gap:10px}
-.brand .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#4f46e5);
-  display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px}
+.brand .mark{width:28px;height:28px;border-radius:6px;background:var(--accent);
+  display:grid;place-items:center;color:#fff;font-weight:800;font-size:14px}
 .brand .name{font-weight:700;color:#f8fafc;font-size:15px;letter-spacing:-.01em}
 .brand .sub{color:#64748b;font-size:11px;margin-top:2px}
 .tenant{margin:14px 12px 4px;padding:10px 12px;background:rgba(255,255,255,.05);border-radius:var(--radius-sm);
@@ -63,12 +63,9 @@ nav{padding:10px 12px;flex:1;overflow:auto}
 .topbar h1{font-size:16px;font-weight:700;margin:0;letter-spacing:-.01em}
 .topbar .crumb{color:var(--muted);font-size:13px}
 .spacer{flex:1}
-.chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:4px 10px;
-  border-radius:20px;border:1px solid var(--line)}
-.chip .dot{width:7px;height:7px;border-radius:50%}
-.chip.live{background:var(--good-soft);color:var(--good);border-color:transparent}
-.chip.demo{background:var(--warn-soft);color:var(--warn);border-color:transparent}
-.chip.env{background:var(--subtle);color:var(--ink-2)}
+.demoflag{font-size:11.5px;color:var(--muted);padding-left:12px;margin-left:12px;border-left:1px solid var(--line)}
+.toplink{font-size:13px;font-weight:600;color:var(--accent);padding:6px 12px;border:1px solid var(--line);border-radius:var(--radius-sm)}
+.toplink:hover{background:var(--accent-soft);border-color:var(--accent-soft)}
 .userbtn{display:flex;align-items:center;gap:9px;padding:5px 8px;border-radius:var(--radius-sm);cursor:pointer}
 .userbtn:hover{background:var(--subtle)}
 .avatar{width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);
@@ -84,10 +81,10 @@ nav{padding:10px 12px;flex:1;overflow:auto}
 .section-head .spacer{flex:1}
 
 /* deterministic principle banner */
-.principle{display:flex;align-items:center;gap:12px;background:var(--accent-soft);border:1px solid #e0e7ff;
-  border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--accent-ink)}
-.principle b{font-weight:700}
-.principle .k{font-family:var(--mono);background:#fff;border:1px solid #e0e7ff;border-radius:6px;padding:1px 7px;font-size:12px}
+.principle{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);
+  border-left:3px solid var(--accent);border-radius:var(--radius-sm);padding:9px 14px;margin-bottom:18px;font-size:12.5px;color:var(--ink-2)}
+.principle b{font-weight:700;color:var(--ink)}
+.principle .k{font-family:var(--mono);color:var(--accent);font-size:12px}
 
 /* KPI tiles */
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
@@ -242,10 +239,9 @@ tbody tr:last-child td{border-bottom:none}
     <div class="topbar">
       <h1 id="pageTitle">대시보드</h1>
       <span class="crumb" id="crumb">사기대응 현황</span>
+      <span class="demoflag">데모 환경 · 합성 데이터</span>
       <span class="spacer"></span>
-      <span class="chip live"><span class="dot" style="background:var(--good)"></span>API 정상</span>
-      <span class="chip demo">DEMO · 합성 데이터</span>
-      <a class="chip" href="./app.html" style="cursor:pointer;background:var(--accent-soft);color:var(--accent-ink);border-color:transparent;text-decoration:none">📱 고객 화면(모바일)</a>
+      <a class="toplink" href="./app.html" target="_blank" rel="noopener">고객 화면(모바일)&nbsp;→</a>
       <div class="userbtn"><div class="avatar">담</div><div style="font-size:12.5px"><b>담당자</b><div style="color:var(--muted);font-size:11px">소비자보호팀</div></div></div>
     </div>
 
@@ -253,8 +249,7 @@ tbody tr:last-child td{border-bottom:none}
       <!-- ============ DASHBOARD ============ -->
       <section class="view on" id="v-dash">
         <div class="principle">
-          <b>결정론 원칙</b>&nbsp;— 지급정지 번호·위험점수·긴급도는 전부 <span class="k">결정론적 규칙</span>으로 산출합니다.
-          <span class="llm-tag" style="margin-left:auto">LLM</span>&nbsp;은 피해자 진술 해석·안내문 생성에만 관여하며 금액·번호·법적 판단에는 개입하지 않습니다.
+          <b>결정론 원칙</b>&nbsp;— 번호·위험점수·긴급도·법적 절차는 <span class="k">결정론 규칙</span>으로 산출하며, LLM은 진술 해석·안내문 생성에만 관여합니다.
         </div>
         <div class="kpi-row" id="kpis"></div>
         <div class="grid g-2">
