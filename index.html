@@ -625,7 +625,9 @@ function startLive(){
     refreshDashboard(); saveState();
   }, 1800);
 }
-loadState();
+// URL에 ?reset 있으면 저장 상태 초기화 후 시드부터 다시 시작
+if(/(?:[?&#])reset\b/i.test(location.search+location.hash)){try{localStorage.removeItem(LS_KEY);}catch(e){}}
+else{loadState();}
 renderKPIs();renderTrend();renderUrg();renderRecent();renderCaseList();selectCase(curCase);renderAudit();renderData();
 startLive();
 window.addEventListener('resize',renderTrend);
